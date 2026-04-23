@@ -82,6 +82,7 @@ jobs:
             config/manager/namespace.yaml \
             config/crd/bases/storage.garage.io_garageclusters.yaml \
             config/crd/bases/storage.garage.io_garagewebuis.yaml \
+            config/crd/bases/deuxfleurs.fr_garagenodes.yaml \
             config/rbac/service_account.yaml \
             config/rbac/role.yaml \
             config/rbac/role_binding.yaml \

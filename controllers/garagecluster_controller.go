@@ -206,7 +206,7 @@ rpc_bind_addr = "0.0.0.0:3901"
 [kubernetes_discovery]
   namespace    = "{{ .Namespace }}"
   service_name = "{{ .ServiceName }}"
-  skip_crd     = false
+  skip_crd     = true
 
 [s3_api]
   api_bind_addr = "0.0.0.0:3900"
@@ -448,7 +448,7 @@ func (r *GarageClusterReconciler) buildPodTemplate(cluster *storagev1alpha1.Gara
 					PeriodSeconds:       10,
 				},
 				LivenessProbe: &corev1.Probe{
-					ProbeHandler:        corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(3901)}},
+					ProbeHandler:        corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(3900)}},
 					InitialDelaySeconds: 30,
 					PeriodSeconds:       20,
 				},
