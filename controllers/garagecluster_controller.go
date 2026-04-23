@@ -425,7 +425,7 @@ func (r *GarageClusterReconciler) buildPodTemplate(cluster *storagev1alpha1.Gara
 				Image:           image,
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command:         []string{"/garage"},
-				Args:            []string{"server"},
+				Args:            []string{"-c", "/etc/garage/garage.toml", "server"},
 				Ports: []corev1.ContainerPort{
 					{Name: "s3", ContainerPort: 3900},
 					{Name: "rpc", ContainerPort: 3901},
