@@ -374,7 +374,6 @@ func (r *GarageClusterReconciler) ensureStatefulSet(ctx context.Context, cluster
 	image := garageImage(cluster)
 	replicas := cluster.Spec.Replicas
 	mode := int32(0444)
-	fsGroup := int64(1000)
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{Name: cluster.Name, Namespace: cluster.Namespace, Labels: labelsFor(cluster)},
@@ -402,7 +401,7 @@ func (r *GarageClusterReconciler) ensureStatefulSet(ctx context.Context, cluster
 				buildPVC("meta", cluster.Spec.Storage.MetaStorageSize, cluster.Spec.Storage.StorageClassName),
 				buildPVC("data", cluster.Spec.Storage.DataStorageSize, cluster.Spec.Storage.StorageClassName),
 			},
-			Template: r.buildPodTemplate(cluster, image, mode, fsGroup),
+			Template: r.buildPodTemplate(cluster, image, mode),
 		}
 		return r.Create(ctx, sts)
 	}
@@ -410,18 +409,17 @@ func (r *GarageClusterReconciler) ensureStatefulSet(ctx context.Context, cluster
 	// On update: only touch replicas, image, resources (VolumeClaimTemplates are immutable)
 	patch := client.MergeFrom(existing.DeepCopy())
 	existing.Spec.Replicas = &replicas
-	existing.Spec.Template = r.buildPodTemplate(cluster, image, mode, fsGroup)
+	existing.Spec.Template = r.buildPodTemplate(cluster, image, mode)
 	return r.Patch(ctx, existing, patch)
 }
 
-func (r *GarageClusterReconciler) buildPodTemplate(cluster *storagev1alpha1.GarageCluster, image string, mode int32, fsGroup int64) corev1.PodTemplateSpec {
+func (r *GarageClusterReconciler) buildPodTemplate(cluster *storagev1alpha1.GarageCluster, image string, mode int32) corev1.PodTemplateSpec {
 	return corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{Labels: labelsFor(cluster)},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: cluster.Name,
 			NodeSelector:       cluster.Spec.NodeSelector,
 			Tolerations:        cluster.Spec.Tolerations,
-			SecurityContext:    &corev1.PodSecurityContext{FSGroup: &fsGroup},
 			Containers: []corev1.Container{{
 				Name:            "garage",
 				Image:           image,
