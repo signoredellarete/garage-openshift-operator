@@ -36,8 +36,7 @@ spec:
         - name: manager
           image: quay.io/signoredellarete/garage-openshift-operator:latest
           imagePullPolicy: IfNotPresent
-          args:
-            - --leader-elect
+          args: []
           ports:
             - name: metrics
               containerPort: 8080
