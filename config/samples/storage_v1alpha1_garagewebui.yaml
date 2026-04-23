@@ -6,7 +6,7 @@ metadata:
   namespace: garage
 spec:
   replicas: 1
-  version: "v1.1.0"
+  version: "1.1.0"
 
   garageClusterRef:
     name: my-garage   # must match a GarageCluster in the same namespace

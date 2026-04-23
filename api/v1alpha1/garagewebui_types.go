@@ -16,7 +16,7 @@ type GarageWebUISpec struct {
 	Image string `json:"image,omitempty"`
 
 	// Version of garage-webui to deploy (e.g. "v1.1.0")
-	// +kubebuilder:default="v1.1.0"
+	// +kubebuilder:default="1.1.0"
 	Version string `json:"version"`
 
 	// AutoUpdate configures automatic garage-webui version upgrades
