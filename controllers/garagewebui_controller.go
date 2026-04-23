@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -220,37 +220,38 @@ func (r *GarageWebUIReconciler) ensureWebuiRoute(ctx context.Context, webui *sto
 		return nil
 	}
 
-	termination := routev1.TLSTerminationEdge
+	termination := "Edge"
 	switch webui.Spec.Expose.Route.TLSTermination {
 	case "passthrough":
-		termination = routev1.TLSTerminationPassthrough
+		termination = "Passthrough"
 	case "reencrypt":
-		termination = routev1.TLSTerminationReencrypt
+		termination = "Reencrypt"
 	}
 
-	route := &routev1.Route{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      webui.Name,
-			Namespace: webui.Namespace,
-			Labels:    webuiLabels(webui),
-		},
-	}
+	route := &unstructured.Unstructured{}
+	route.SetAPIVersion("route.openshift.io/v1")
+	route.SetKind("Route")
+	route.SetName(webui.Name)
+	route.SetNamespace(webui.Namespace)
+	route.SetLabels(webuiLabels(webui))
+
 	if err := controllerutil.SetControllerReference(webui, route, r.Scheme); err != nil {
 		return err
 	}
 	return createOrUpdate(ctx, r.Client, route, func() error {
-		route.Spec = routev1.RouteSpec{
-			Host: webui.Spec.Expose.Route.Hostname,
-			To: routev1.RouteTargetReference{
-				Kind: "Service",
-				Name: webui.Name,
+		route.Object["spec"] = map[string]interface{}{
+			"host": webui.Spec.Expose.Route.Hostname,
+			"to": map[string]interface{}{
+				"kind":   "Service",
+				"name":   webui.Name,
+				"weight": int64(100),
 			},
-			Port: &routev1.RoutePort{
-				TargetPort: intstr.FromInt(webuiPort),
+			"port": map[string]interface{}{
+				"targetPort": int64(webuiPort),
 			},
-			TLS: &routev1.TLSConfig{
-				Termination:                   termination,
-				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+			"tls": map[string]interface{}{
+				"termination":                   termination,
+				"insecureEdgeTerminationPolicy": "Redirect",
 			},
 		}
 		return nil
@@ -273,10 +274,14 @@ func (r *GarageWebUIReconciler) updateWebuiStatus(ctx context.Context, webui *st
 
 	// Retrieve route URL if available
 	if webui.Spec.Expose.Route.Enabled {
-		route := &routev1.Route{}
+		route := &unstructured.Unstructured{}
+		route.SetAPIVersion("route.openshift.io/v1")
+		route.SetKind("Route")
 		if err := r.Get(ctx, types.NamespacedName{Name: webui.Name, Namespace: webui.Namespace}, route); err == nil {
-			if route.Spec.Host != "" {
-				webui.Status.URL = "https://" + route.Spec.Host
+			if spec, ok := route.Object["spec"].(map[string]interface{}); ok {
+				if host, ok := spec["host"].(string); ok && host != "" {
+					webui.Status.URL = "https://" + host
+				}
 			}
 		}
 	}

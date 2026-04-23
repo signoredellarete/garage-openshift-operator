@@ -10,13 +10,13 @@ import (
 	"text/template"
 	"time"
 
-	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -581,26 +581,38 @@ func (r *GarageClusterReconciler) ensureRoutes(ctx context.Context, cluster *sto
 }
 
 func (r *GarageClusterReconciler) ensureRoute(ctx context.Context, cluster *storagev1alpha1.GarageCluster, routeName, serviceName string, port int32, spec storagev1alpha1.RouteSpec) error {
-	termination := routev1.TLSTerminationEdge
+	termination := "Edge"
 	switch spec.TLSTermination {
 	case "passthrough":
-		termination = routev1.TLSTerminationPassthrough
+		termination = "Passthrough"
 	case "reencrypt":
-		termination = routev1.TLSTerminationReencrypt
+		termination = "Reencrypt"
 	}
 
-	route := &routev1.Route{
-		ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: cluster.Namespace, Labels: labelsFor(cluster)},
-	}
+	route := &unstructured.Unstructured{}
+	route.SetAPIVersion("route.openshift.io/v1")
+	route.SetKind("Route")
+	route.SetName(routeName)
+	route.SetNamespace(cluster.Namespace)
+	route.SetLabels(labelsFor(cluster))
+
 	if err := controllerutil.SetControllerReference(cluster, route, r.Scheme); err != nil {
 		return err
 	}
 	return createOrUpdate(ctx, r.Client, route, func() error {
-		route.Spec = routev1.RouteSpec{
-			Host: spec.Hostname,
-			To:   routev1.RouteTargetReference{Kind: "Service", Name: serviceName},
-			Port: &routev1.RoutePort{TargetPort: intstr.FromInt32(port)},
-			TLS:  &routev1.TLSConfig{Termination: termination},
+		route.Object["spec"] = map[string]interface{}{
+			"host": spec.Hostname,
+			"to": map[string]interface{}{
+				"kind":   "Service",
+				"name":   serviceName,
+				"weight": int64(100),
+			},
+			"port": map[string]interface{}{
+				"targetPort": port,
+			},
+			"tls": map[string]interface{}{
+				"termination": termination,
+			},
 		}
 		return nil
 	})
