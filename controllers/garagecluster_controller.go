@@ -211,11 +211,11 @@ rpc_bind_addr = "0.0.0.0:3901"
 [s3_api]
   api_bind_addr = "0.0.0.0:3900"
   s3_region     = "{{ .S3Region }}"
-  {{ if .S3RootDomain }}root_domain = "{{ .S3RootDomain }}"{{ end }}
+  root_domain   = "{{ if .S3RootDomain }}{{ .S3RootDomain }}{{ else }}.s3.garage.localhost{{ end }}"
 
 [s3_web]
-  bind_addr = "0.0.0.0:3902"
-  {{ if .WebRootDomain }}root_domain = "{{ .WebRootDomain }}"{{ end }}
+  bind_addr   = "0.0.0.0:3902"
+  root_domain = "{{ if .WebRootDomain }}{{ .WebRootDomain }}{{ else }}.web.garage.localhost{{ end }}"
 
 [admin]
   api_bind_addr = "0.0.0.0:3903"
