@@ -8,6 +8,7 @@ on:
 
 env:
   IMAGE: quay.io/${{ github.repository_owner }}/garage-openshift-operator
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-push-release:
@@ -26,6 +27,9 @@ jobs:
         with:
           go-version: '1.22'
           cache: true
+
+      - name: Tidy modules
+        run: go mod tidy
 
       - name: Build
         run: go build ./...
