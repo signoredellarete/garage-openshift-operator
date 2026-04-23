@@ -79,6 +79,7 @@ jobs:
 
           # Concatena tutti i manifest in un file unico
           cat \
+            config/manager/namespace.yaml \
             config/crd/bases/storage.garage.io_garageclusters.yaml \
             config/crd/bases/storage.garage.io_garagewebuis.yaml \
             config/rbac/service_account.yaml \

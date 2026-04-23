@@ -1,11 +1,4 @@
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: garage-operator-system
-  labels:
-    control-plane: garage-operator
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
