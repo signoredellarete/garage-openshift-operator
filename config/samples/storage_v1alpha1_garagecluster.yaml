@@ -1,0 +1,43 @@
+---
+apiVersion: storage.garage.io/v1alpha1
+kind: GarageCluster
+metadata:
+  name: my-garage
+  namespace: garage
+spec:
+  # 3 replicas = tolerate 1 node failure with replicationFactor: 2
+  replicas: 3
+  version: "v1.0.1"
+
+  autoUpdate:
+    enabled: true
+    schedule: "0 2 * * *"   # check every night at 02:00 UTC
+    allowPreRelease: false
+
+  storage:
+    metaStorageSize: "5Gi"   # SSD-backed StorageClass recommended
+    dataStorageSize: "100Gi"
+    storageClassName: "gp3-csi"   # adjust to your cluster StorageClass
+
+  config:
+    s3Region: "garage"
+    replicationFactor: 2          # store 2 copies of each object
+    zone: "dc1"
+    dbEngine: "lmdb"
+    consistencyMode: "consistent"
+
+  expose:
+    s3APIRoute:
+      enabled: true
+      hostname: "s3.example.com"    # leave empty for auto-generated hostname
+      tlsTermination: "edge"
+    webRoute:
+      enabled: false
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"

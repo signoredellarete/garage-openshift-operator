@@ -1,0 +1,13 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: garage-operator-manager-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: garage-operator
+    namespace: garage-operator-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: garage-operator-manager-role

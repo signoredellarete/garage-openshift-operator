@@ -1,0 +1,36 @@
+---
+apiVersion: storage.garage.io/v1alpha1
+kind: GarageWebUI
+metadata:
+  name: my-garage-webui
+  namespace: garage
+spec:
+  replicas: 1
+  version: "v1.1.0"
+
+  garageClusterRef:
+    name: my-garage   # must match a GarageCluster in the same namespace
+
+  autoUpdate:
+    enabled: true
+    schedule: "0 3 * * *"
+
+  expose:
+    route:
+      enabled: true
+      hostname: "garage-ui.example.com"   # leave empty for auto-generated hostname
+      tlsTermination: "edge"
+
+  # Optional: enable basic auth
+  # auth:
+  #   secretRef:
+  #     name: garage-webui-auth
+  #     key: credentials    # format: "admin:$2b$12$..."  (bcrypt hash)
+
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"

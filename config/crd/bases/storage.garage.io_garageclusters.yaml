@@ -1,0 +1,237 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: garageclusters.storage.garage.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+spec:
+  group: storage.garage.io
+  names:
+    kind: GarageCluster
+    listKind: GarageClusterList
+    plural: garageclusters
+    singular: garagecluster
+    shortNames:
+      - gc
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Ready
+          type: integer
+          jsonPath: .status.readyReplicas
+        - name: Version
+          type: string
+          jsonPath: .status.currentVersion
+        - name: Layout
+          type: boolean
+          jsonPath: .status.layoutApplied
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: GarageCluster manages a distributed Garage S3-compatible storage cluster.
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - replicas
+                - version
+                - storage
+              properties:
+                replicas:
+                  type: integer
+                  minimum: 1
+                  default: 3
+                  description: Number of Garage pods to deploy.
+                image:
+                  type: string
+                  description: Custom Docker image. Defaults to dxflrs/garage:<version>.
+                version:
+                  type: string
+                  default: "v1.0.1"
+                  description: Garage version tag (e.g. "v1.0.1").
+                autoUpdate:
+                  type: object
+                  description: Configures automatic version upgrades.
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    schedule:
+                      type: string
+                      default: "0 2 * * *"
+                      description: Cron expression for update checks.
+                    allowPreRelease:
+                      type: boolean
+                      default: false
+                storage:
+                  type: object
+                  required:
+                    - metaStorageSize
+                    - dataStorageSize
+                  description: PVC sizes for Garage metadata and object data.
+                  properties:
+                    metaStorageSize:
+                      type: string
+                      default: "3Gi"
+                      description: Size of the metadata PVC (SSD recommended).
+                    dataStorageSize:
+                      type: string
+                      default: "30Gi"
+                      description: Size of the object data PVC.
+                    storageClassName:
+                      type: string
+                      description: StorageClass for PVCs. Uses cluster default if unset.
+                config:
+                  type: object
+                  description: Garage configuration parameters.
+                  properties:
+                    s3Region:
+                      type: string
+                      default: "garage"
+                    s3RootDomain:
+                      type: string
+                      description: Root domain for vhost-style S3 bucket access.
+                    webRootDomain:
+                      type: string
+                      description: Root domain for static website hosting.
+                    dbEngine:
+                      type: string
+                      enum: [lmdb, sqlite]
+                      default: "lmdb"
+                    replicationFactor:
+                      type: integer
+                      minimum: 1
+                      maximum: 7
+                      default: 1
+                      description: Number of data replicas. Must be <= replicas.
+                    consistencyMode:
+                      type: string
+                      enum: [consistent, degraded, dangerous]
+                      default: "consistent"
+                    blockSize:
+                      type: string
+                      description: Chunk size for object storage (e.g. "1MiB").
+                    compressionLevel:
+                      type: integer
+                      minimum: -99
+                      maximum: 22
+                      description: Zstd compression level. 0 = default (1).
+                    zone:
+                      type: string
+                      default: "dc1"
+                      description: Datacenter zone label for cluster layout.
+                expose:
+                  type: object
+                  description: OpenShift Routes for external access.
+                  properties:
+                    s3APIRoute:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        hostname:
+                          type: string
+                        tlsTermination:
+                          type: string
+                          enum: [edge, passthrough, reencrypt]
+                          default: "edge"
+                    webRoute:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        hostname:
+                          type: string
+                        tlsTermination:
+                          type: string
+                          enum: [edge, passthrough, reencrypt]
+                          default: "edge"
+                    adminRoute:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        hostname:
+                          type: string
+                        tlsTermination:
+                          type: string
+                          enum: [edge, passthrough, reencrypt]
+                          default: "edge"
+                rpcSecretRef:
+                  type: object
+                  description: Reference to an existing Secret containing the RPC secret.
+                  required: [name, key]
+                  properties:
+                    name:
+                      type: string
+                    key:
+                      type: string
+                adminTokenRef:
+                  type: object
+                  description: Reference to an existing Secret containing the admin token.
+                  required: [name, key]
+                  properties:
+                    name:
+                      type: string
+                    key:
+                      type: string
+                resources:
+                  type: object
+                  description: Compute resources for Garage pods.
+                  x-kubernetes-preserve-unknown-fields: true
+                nodeSelector:
+                  type: object
+                  additionalProperties:
+                    type: string
+                tolerations:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  description: "Lifecycle phase: Provisioning, Ready, Degraded, Updating"
+                readyReplicas:
+                  type: integer
+                currentVersion:
+                  type: string
+                availableVersion:
+                  type: string
+                lastUpdateCheck:
+                  type: string
+                  format: date-time
+                layoutApplied:
+                  type: boolean
+                s3Endpoint:
+                  type: string
+                adminEndpoint:
+                  type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true

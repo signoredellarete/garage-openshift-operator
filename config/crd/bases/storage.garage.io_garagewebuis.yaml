@@ -1,0 +1,141 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: garagewebuis.storage.garage.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+spec:
+  group: storage.garage.io
+  names:
+    kind: GarageWebUI
+    listKind: GarageWebUIList
+    plural: garagewebuis
+    singular: garagewebui
+    shortNames:
+      - gwui
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Ready
+          type: integer
+          jsonPath: .status.readyReplicas
+        - name: Version
+          type: string
+          jsonPath: .status.currentVersion
+        - name: URL
+          type: string
+          jsonPath: .status.url
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: GarageWebUI deploys the garage-webui admin interface for a GarageCluster.
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - replicas
+                - version
+                - garageClusterRef
+              properties:
+                replicas:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                image:
+                  type: string
+                  description: Custom Docker image. Defaults to khairul169/garage-webui:<version>.
+                version:
+                  type: string
+                  default: "v1.1.0"
+                  description: garage-webui version tag.
+                autoUpdate:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    schedule:
+                      type: string
+                      default: "0 3 * * *"
+                    allowPreRelease:
+                      type: boolean
+                      default: false
+                garageClusterRef:
+                  type: object
+                  required: [name]
+                  description: Reference to the GarageCluster this WebUI connects to.
+                  properties:
+                    name:
+                      type: string
+                expose:
+                  type: object
+                  description: OpenShift Route for the WebUI.
+                  properties:
+                    route:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        hostname:
+                          type: string
+                        tlsTermination:
+                          type: string
+                          enum: [edge, passthrough, reencrypt]
+                          default: "edge"
+                auth:
+                  type: object
+                  description: Basic authentication for the WebUI.
+                  required: [secretRef]
+                  properties:
+                    secretRef:
+                      type: object
+                      required: [name, key]
+                      description: Secret containing "user:bcrypt_hash" credentials.
+                      properties:
+                        name:
+                          type: string
+                        key:
+                          type: string
+                resources:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                readyReplicas:
+                  type: integer
+                currentVersion:
+                  type: string
+                availableVersion:
+                  type: string
+                lastUpdateCheck:
+                  type: string
+                  format: date-time
+                url:
+                  type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
