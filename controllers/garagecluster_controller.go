@@ -425,7 +425,7 @@ func (r *GarageClusterReconciler) buildPodTemplate(cluster *storagev1alpha1.Gara
 				Image:           image,
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command:         []string{"/garage"},
-				Args:            []string{"-c", "/etc/garage/garage.toml", "server"},
+				Args:            []string{"server"},
 				Ports: []corev1.ContainerPort{
 					{Name: "s3", ContainerPort: 3900},
 					{Name: "rpc", ContainerPort: 3901},
@@ -437,7 +437,7 @@ func (r *GarageClusterReconciler) buildPodTemplate(cluster *storagev1alpha1.Gara
 					envFromSecret("GARAGE_ADMIN_TOKEN", cluster.Name+"-secrets", "admin-token"),
 				},
 				VolumeMounts: []corev1.VolumeMount{
-					{Name: "config", MountPath: "/etc/garage", ReadOnly: true},
+					{Name: "config", MountPath: "/etc/garage.toml", SubPath: "garage.toml", ReadOnly: true},
 					{Name: "meta", MountPath: garageMetaDir},
 					{Name: "data", MountPath: garageDataDir},
 				},
@@ -487,7 +487,7 @@ func (r *GarageClusterReconciler) initLayout(ctx context.Context, cluster *stora
 	pod0 := cluster.Name + "-0"
 
 	stdout, _, err := r.execInPod(ctx, cluster.Namespace, pod0, "garage",
-		[]string{"/garage", "-c", "/etc/garage/garage.toml", "status"})
+		[]string{"/garage", "status"})
 	if err != nil {
 		return fmt.Errorf("garage status: %w", err)
 	}
@@ -502,14 +502,14 @@ func (r *GarageClusterReconciler) initLayout(ctx context.Context, cluster *stora
 
 	for _, id := range nodeIDs {
 		_, stderr, execErr := r.execInPod(ctx, cluster.Namespace, pod0, "garage",
-			[]string{"/garage", "-c", "/etc/garage/garage.toml", "layout", "assign", "-z", zone, "-c", fmt.Sprintf("%dG", capacityGB), id})
+			[]string{"/garage", "layout", "assign", "-z", zone, "-c", fmt.Sprintf("%dG", capacityGB), id})
 		if execErr != nil {
 			return fmt.Errorf("layout assign %s: %w (stderr: %s)", id, execErr, stderr)
 		}
 	}
 
 	if _, stderr, execErr := r.execInPod(ctx, cluster.Namespace, pod0, "garage",
-		[]string{"/garage", "-c", "/etc/garage/garage.toml", "layout", "apply", "--version", "1"}); execErr != nil {
+		[]string{"/garage", "layout", "apply", "--version", "1"}); execErr != nil {
 		return fmt.Errorf("layout apply: %w (stderr: %s)", execErr, stderr)
 	}
 
