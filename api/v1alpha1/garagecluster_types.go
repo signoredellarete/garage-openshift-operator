@@ -17,7 +17,7 @@ type GarageClusterSpec struct {
 	Image string `json:"image,omitempty"`
 
 	// Version of Garage to deploy (e.g. "v1.0.1")
-	// +kubebuilder:default="v1.0.1"
+	// +kubebuilder:default="v2.3.0"
 	Version string `json:"version"`
 
 	// AutoUpdate configures automatic Garage version upgrades
