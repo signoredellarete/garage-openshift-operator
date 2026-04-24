@@ -6,6 +6,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -509,8 +511,16 @@ func (r *GarageClusterReconciler) initLayout(ctx context.Context, cluster *stora
 		}
 	}
 
+	nextVersion, err := r.getNextLayoutVersion(ctx, cluster.Namespace, pod0)
+	if err != nil {
+		return fmt.Errorf("layout show: %w", err)
+	}
+	if nextVersion == 0 {
+		logger.Info("no staged layout changes detected, skipping apply")
+		return nil
+	}
 	if _, stderr, execErr := r.execInPod(ctx, cluster.Namespace, pod0, "garage",
-		[]string{"/garage", "layout", "apply", "--version", "1"}); execErr != nil {
+		[]string{"/garage", "layout", "apply", "--version", strconv.Itoa(nextVersion)}); execErr != nil {
 		return fmt.Errorf("layout apply: %w (stderr: %s)", execErr, stderr)
 	}
 
@@ -521,6 +531,28 @@ func (r *GarageClusterReconciler) initLayout(ctx context.Context, cluster *stora
 	patch := client.MergeFrom(cluster.DeepCopy())
 	cluster.Status.LayoutApplied = true
 	return r.Status().Patch(ctx, cluster, patch)
+}
+
+var reLayoutVersion = regexp.MustCompile(`--version\s+(\d+)`)
+
+// getNextLayoutVersion runs `garage layout show` and returns the version number
+// that should be passed to `garage layout apply --version N`. Returns 0 if no
+// staged changes are present (nothing to apply).
+func (r *GarageClusterReconciler) getNextLayoutVersion(ctx context.Context, namespace, pod string) (int, error) {
+	stdout, _, err := r.execInPod(ctx, namespace, pod, "garage",
+		[]string{"/garage", "layout", "show"})
+	if err != nil {
+		return 0, err
+	}
+	m := reLayoutVersion.FindStringSubmatch(stdout)
+	if m == nil {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0, err
+	}
+	return v, nil
 }
 
 // execInPod runs a command inside a container and returns stdout, stderr.
@@ -625,29 +657,12 @@ func (r *GarageClusterReconciler) handleDeletion(ctx context.Context, cluster *s
 		if err := r.deleteGarageNodes(ctx, cluster.Namespace); err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := r.deleteClusterPVCs(ctx, cluster); err != nil {
-			return ctrl.Result{}, err
-		}
 		controllerutil.RemoveFinalizer(cluster, garageFinalizerName)
 		if err := r.Update(ctx, cluster); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 	return ctrl.Result{}, nil
-}
-
-func (r *GarageClusterReconciler) deleteClusterPVCs(ctx context.Context, cluster *storagev1alpha1.GarageCluster) error {
-	for _, prefix := range []string{"meta", "data"} {
-		for i := int32(0); i < cluster.Spec.Replicas; i++ {
-			pvc := &corev1.PersistentVolumeClaim{}
-			pvc.Name = fmt.Sprintf("%s-%s-%d", prefix, cluster.Name, i)
-			pvc.Namespace = cluster.Namespace
-			if err := r.Delete(ctx, pvc); err != nil && !errors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (r *GarageClusterReconciler) deleteGarageNodes(ctx context.Context, namespace string) error {
