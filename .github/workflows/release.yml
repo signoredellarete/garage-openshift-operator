@@ -64,8 +64,6 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       # ── Genera manifesti all-in-one per questa release ───────────────────────
       - name: Genera install-${{ github.ref_name }}.yaml
