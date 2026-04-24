@@ -625,12 +625,29 @@ func (r *GarageClusterReconciler) handleDeletion(ctx context.Context, cluster *s
 		if err := r.deleteGarageNodes(ctx, cluster.Namespace); err != nil {
 			return ctrl.Result{}, err
 		}
+		if err := r.deleteClusterPVCs(ctx, cluster); err != nil {
+			return ctrl.Result{}, err
+		}
 		controllerutil.RemoveFinalizer(cluster, garageFinalizerName)
 		if err := r.Update(ctx, cluster); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *GarageClusterReconciler) deleteClusterPVCs(ctx context.Context, cluster *storagev1alpha1.GarageCluster) error {
+	for _, prefix := range []string{"meta", "data"} {
+		for i := int32(0); i < cluster.Spec.Replicas; i++ {
+			pvc := &corev1.PersistentVolumeClaim{}
+			pvc.Name = fmt.Sprintf("%s-%s-%d", prefix, cluster.Name, i)
+			pvc.Namespace = cluster.Namespace
+			if err := r.Delete(ctx, pvc); err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *GarageClusterReconciler) deleteGarageNodes(ctx context.Context, namespace string) error {
