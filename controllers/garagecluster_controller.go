@@ -516,17 +516,16 @@ func (r *GarageClusterReconciler) initLayout(ctx context.Context, cluster *stora
 		return fmt.Errorf("layout show: %w", err)
 	}
 	if nextVersion == 0 {
-		logger.Info("no staged layout changes detected, skipping apply")
-		return nil
+		logger.Info("layout already applied on existing data, marking as done")
+	} else {
+		if _, stderr, execErr := r.execInPod(ctx, cluster.Namespace, pod0, "garage",
+			[]string{"/garage", "layout", "apply", "--version", strconv.Itoa(nextVersion)}); execErr != nil {
+			return fmt.Errorf("layout apply: %w (stderr: %s)", execErr, stderr)
+		}
+		logger.Info("Garage layout applied", "nodes", len(nodeIDs), "zone", zone)
+		r.Recorder.Eventf(cluster, corev1.EventTypeNormal, "LayoutApplied",
+			"Garage cluster layout applied: %d nodes in zone %s", len(nodeIDs), zone)
 	}
-	if _, stderr, execErr := r.execInPod(ctx, cluster.Namespace, pod0, "garage",
-		[]string{"/garage", "layout", "apply", "--version", strconv.Itoa(nextVersion)}); execErr != nil {
-		return fmt.Errorf("layout apply: %w (stderr: %s)", execErr, stderr)
-	}
-
-	logger.Info("Garage layout applied", "nodes", len(nodeIDs), "zone", zone)
-	r.Recorder.Eventf(cluster, corev1.EventTypeNormal, "LayoutApplied",
-		"Garage cluster layout applied: %d nodes in zone %s", len(nodeIDs), zone)
 
 	patch := client.MergeFrom(cluster.DeepCopy())
 	cluster.Status.LayoutApplied = true
