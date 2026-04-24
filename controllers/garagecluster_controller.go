@@ -637,11 +637,12 @@ func (r *GarageClusterReconciler) deleteGarageNodes(ctx context.Context, namespa
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "deuxfleurs.fr",
-		Version: "v1alpha1",
+		Version: "v1",
 		Kind:    "GarageNodeList",
 	})
 	if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
-		return client.IgnoreNotFound(err)
+		// CRD missing or namespace terminating: nothing to clean up
+		return nil
 	}
 	for i := range list.Items {
 		if err := r.Delete(ctx, &list.Items[i]); err != nil && !errors.IsNotFound(err) {
