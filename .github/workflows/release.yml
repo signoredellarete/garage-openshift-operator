@@ -69,25 +69,26 @@ jobs:
       - name: Genera install-${{ github.ref_name }}.yaml
         run: |
           VERSION="${GITHUB_REF_NAME}"
+          VERSION_NO_V="${VERSION#v}"
           IMAGE_TAG="${{ env.IMAGE }}:${VERSION}"
 
-          # Sostituisce il placeholder immagine nel manager deployment
-          sed "s|quay.io/signoredellarete/garage-openshift-operator:latest|${IMAGE_TAG}|g" \
-            config/manager/manager.yaml > /tmp/manager.yaml
+          # Genera il CSV con versione e immagine corrette
+          sed -e "s|REPLACE_VERSION|${VERSION_NO_V}|g" \
+              -e "s|REPLACE_IMAGE|${IMAGE_TAG}|g" \
+              config/manifests/bases/garage-openshift-operator.clusterserviceversion.yaml \
+              > "/tmp/csv-${VERSION}.yaml"
 
-          # Concatena tutti i manifest in un file unico
+          # Manifest OLM (installa via CSV — per OpenShift)
           cat \
             config/manager/namespace.yaml \
             config/crd/bases/storage.garage.io_garageclusters.yaml \
             config/crd/bases/storage.garage.io_garagewebuis.yaml \
             config/crd/bases/deuxfleurs.fr_garagenodes.yaml \
-            config/rbac/service_account.yaml \
-            config/rbac/role.yaml \
-            config/rbac/role_binding.yaml \
-            /tmp/manager.yaml \
+            config/manifests/operatorgroup.yaml \
+            "/tmp/csv-${VERSION}.yaml" \
             > "/tmp/install-${VERSION}.yaml"
 
-          echo "Manifesto generato: install-${VERSION}.yaml"
+          echo "Manifesto OLM generato: install-${VERSION}.yaml"
           wc -l "/tmp/install-${VERSION}.yaml"
 
       # ── Crea la GitHub Release con il file allegato ──────────────────────────

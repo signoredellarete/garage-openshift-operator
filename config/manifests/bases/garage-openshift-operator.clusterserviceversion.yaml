@@ -1,0 +1,365 @@
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: garage-openshift-operator.vREPLACE_VERSION
+  namespace: garage-operator-system
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "storage.garage.io/v1alpha1",
+          "kind": "GarageCluster",
+          "metadata": {
+            "name": "my-garage",
+            "namespace": "garage"
+          },
+          "spec": {
+            "replicas": 1,
+            "version": "v2.3.0",
+            "storage": {
+              "metaStorageSize": "1Gi",
+              "dataStorageSize": "10Gi"
+            },
+            "config": {
+              "s3Region": "garage",
+              "replicationFactor": 1,
+              "zone": "dc1"
+            },
+            "expose": {
+              "s3APIRoute": {
+                "enabled": true,
+                "tlsTermination": "edge"
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "storage.garage.io/v1alpha1",
+          "kind": "GarageWebUI",
+          "metadata": {
+            "name": "my-garage-webui",
+            "namespace": "garage"
+          },
+          "spec": {
+            "replicas": 1,
+            "garageClusterRef": {
+              "name": "my-garage"
+            },
+            "expose": {
+              "route": {
+                "enabled": true,
+                "tlsTermination": "edge"
+              }
+            }
+          }
+        }
+      ]
+    capabilities: Basic Install
+    categories: Storage
+    containerImage: REPLACE_IMAGE
+    description: Deploy and manage Garage S3 distributed storage clusters on OpenShift.
+    repository: https://github.com/signoredellarete/garage-openshift-operator
+spec:
+  displayName: Garage OpenShift Operator
+  description: |
+    ## Overview
+
+    The Garage OpenShift Operator automates the deployment and lifecycle management
+    of [Garage](https://garagehq.deuxfleurs.fr/), a lightweight S3-compatible
+    distributed object storage, on OpenShift clusters.
+
+    ## Features
+
+    - Deploy multi-node Garage clusters via the `GarageCluster` custom resource
+    - Automatic layout initialisation (zone assignment, capacity)
+    - Peer auto-discovery via Kubernetes CRD (`garagenodes.deuxfleurs.fr`)
+    - Expose S3, web and admin endpoints via OpenShift Routes
+    - Deploy the Garage web management UI via the `GarageWebUI` custom resource
+    - Optional automatic version updates from GitHub Releases
+
+    ## Usage
+
+    Create a `GarageCluster` resource in any namespace to deploy a Garage cluster.
+    Then create a `GarageWebUI` resource pointing to that cluster to deploy the
+    management interface.
+
+  version: REPLACE_VERSION
+  maturity: alpha
+
+  provider:
+    name: Fabrizio Verde
+    url: https://github.com/signoredellarete/garage-openshift-operator
+
+  maintainers:
+    - name: Fabrizio Verde
+      email: fverdesorint@gmail.com
+
+  links:
+    - name: GitHub Repository
+      url: https://github.com/signoredellarete/garage-openshift-operator
+    - name: Garage Documentation
+      url: https://garagehq.deuxfleurs.fr/documentation/
+
+  keywords:
+    - storage
+    - s3
+    - garage
+    - object-storage
+    - distributed
+
+  installModes:
+    - type: OwnNamespace
+      supported: true
+    - type: SingleNamespace
+      supported: true
+    - type: MultiNamespace
+      supported: false
+    - type: AllNamespaces
+      supported: true
+
+  install:
+    strategy: deployment
+    spec:
+      clusterPermissions:
+        - serviceAccountName: garage-operator
+          rules:
+            - apiGroups: ["storage.garage.io"]
+              resources: ["garageclusters", "garagewebuis"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: ["storage.garage.io"]
+              resources: ["garageclusters/status", "garagewebuis/status"]
+              verbs: ["get", "update", "patch"]
+            - apiGroups: ["storage.garage.io"]
+              resources: ["garageclusters/finalizers", "garagewebuis/finalizers"]
+              verbs: ["update"]
+            - apiGroups: ["apps"]
+              resources: ["statefulsets", "deployments"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: [""]
+              resources: ["pods"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: [""]
+              resources: ["pods/exec"]
+              verbs: ["create"]
+            - apiGroups: [""]
+              resources: ["services", "configmaps", "secrets", "serviceaccounts"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: [""]
+              resources: ["persistentvolumeclaims"]
+              verbs: ["get", "list", "watch", "create", "update", "patch"]
+            - apiGroups: [""]
+              resources: ["events"]
+              verbs: ["create", "patch"]
+            - apiGroups: ["rbac.authorization.k8s.io"]
+              resources: ["roles", "rolebindings"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: ["route.openshift.io"]
+              resources: ["routes"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: ["apiextensions.k8s.io"]
+              resources: ["customresourcedefinitions"]
+              verbs: ["get", "list", "watch"]
+            - apiGroups: ["deuxfleurs.fr"]
+              resources: ["garagenodes"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: ["coordination.k8s.io"]
+              resources: ["leases"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+      deployments:
+        - name: garage-operator
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                control-plane: garage-operator
+            template:
+              metadata:
+                labels:
+                  control-plane: garage-operator
+              spec:
+                serviceAccountName: garage-operator
+                securityContext:
+                  runAsNonRoot: true
+                  seccompProfile:
+                    type: RuntimeDefault
+                terminationGracePeriodSeconds: 10
+                containers:
+                  - name: manager
+                    image: REPLACE_IMAGE
+                    imagePullPolicy: IfNotPresent
+                    args: []
+                    ports:
+                      - name: metrics
+                        containerPort: 8080
+                        protocol: TCP
+                      - name: health
+                        containerPort: 8081
+                        protocol: TCP
+                    livenessProbe:
+                      httpGet:
+                        path: /healthz
+                        port: 8081
+                      initialDelaySeconds: 15
+                      periodSeconds: 20
+                    readinessProbe:
+                      httpGet:
+                        path: /readyz
+                        port: 8081
+                      initialDelaySeconds: 5
+                      periodSeconds: 10
+                    resources:
+                      limits:
+                        cpu: 500m
+                        memory: 256Mi
+                      requests:
+                        cpu: 10m
+                        memory: 64Mi
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      capabilities:
+                        drop:
+                          - ALL
+
+  customresourcedefinitions:
+    owned:
+      - name: garageclusters.storage.garage.io
+        version: v1alpha1
+        kind: GarageCluster
+        displayName: Garage Cluster
+        description: Deploys and manages a Garage S3 distributed storage cluster.
+        specDescriptors:
+          - path: replicas
+            displayName: Replicas
+            description: Number of Garage nodes in the cluster.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:podCount"
+          - path: version
+            displayName: Garage Version
+            description: "Garage image tag to deploy (e.g. v2.3.0)."
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: storage.metaStorageSize
+            displayName: Metadata Storage Size
+            description: PVC size for Garage metadata (SSD recommended).
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: storage.dataStorageSize
+            displayName: Data Storage Size
+            description: PVC size for Garage object data.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: storage.storageClassName
+            displayName: Storage Class
+            description: StorageClass for PVCs. Leave empty for cluster default.
+            x-descriptors:
+              - "urn:alm:descriptor:io.kubernetes:StorageClass"
+          - path: config.s3Region
+            displayName: S3 Region
+            description: S3 region name returned by the API.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: config.replicationFactor
+            displayName: Replication Factor
+            description: Number of copies of each object stored across nodes.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:number"
+          - path: config.zone
+            displayName: Zone
+            description: Availability zone name for this cluster.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: autoUpdate.enabled
+            displayName: Auto Update
+            description: Automatically update Garage when a new version is released.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+          - path: expose.s3APIRoute.enabled
+            displayName: Expose S3 API Route
+            description: Create an OpenShift Route for the S3 API endpoint.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+          - path: resources
+            displayName: Resources
+            description: Compute resources for Garage pods.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:resourceRequirements"
+        statusDescriptors:
+          - path: phase
+            displayName: Phase
+            description: "Current lifecycle phase: Provisioning, Ready, or Degraded."
+            x-descriptors:
+              - "urn:alm:descriptor:io.kubernetes.phase"
+          - path: readyReplicas
+            displayName: Ready Replicas
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:podStatuses"
+          - path: currentVersion
+            displayName: Current Version
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: s3Endpoint
+            displayName: S3 Endpoint
+            description: Internal S3 API endpoint.
+            x-descriptors:
+              - "urn:alm:descriptor:org.w3:link"
+
+      - name: garagewebuis.storage.garage.io
+        version: v1alpha1
+        kind: GarageWebUI
+        displayName: Garage WebUI
+        description: Deploys the Garage web management interface.
+        specDescriptors:
+          - path: replicas
+            displayName: Replicas
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:podCount"
+          - path: version
+            displayName: WebUI Version
+            description: "garage-webui image tag to deploy (e.g. 1.1.0)."
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: garageClusterRef.name
+            displayName: Garage Cluster
+            description: Name of the GarageCluster in the same namespace.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: expose.route.enabled
+            displayName: Enable Route
+            description: Expose the WebUI via an OpenShift Route.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+          - path: expose.route.hostname
+            displayName: Hostname
+            description: Custom hostname for the Route. Auto-generated if empty.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: autoUpdate.enabled
+            displayName: Auto Update
+            description: Automatically update the WebUI when a new version is released.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+          - path: resources
+            displayName: Resources
+            description: Compute resources for the WebUI pod.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:resourceRequirements"
+        statusDescriptors:
+          - path: phase
+            displayName: Phase
+            x-descriptors:
+              - "urn:alm:descriptor:io.kubernetes.phase"
+          - path: readyReplicas
+            displayName: Ready Replicas
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:podStatuses"
+          - path: currentVersion
+            displayName: Current Version
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
+          - path: url
+            displayName: URL
+            description: External URL of the WebUI.
+            x-descriptors:
+              - "urn:alm:descriptor:org.w3:link"
