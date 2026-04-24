@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -621,12 +622,33 @@ func (r *GarageClusterReconciler) ensureRoute(ctx context.Context, cluster *stor
 
 func (r *GarageClusterReconciler) handleDeletion(ctx context.Context, cluster *storagev1alpha1.GarageCluster) (ctrl.Result, error) {
 	if controllerutil.ContainsFinalizer(cluster, garageFinalizerName) {
+		if err := r.deleteGarageNodes(ctx, cluster.Namespace); err != nil {
+			return ctrl.Result{}, err
+		}
 		controllerutil.RemoveFinalizer(cluster, garageFinalizerName)
 		if err := r.Update(ctx, cluster); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *GarageClusterReconciler) deleteGarageNodes(ctx context.Context, namespace string) error {
+	list := &unstructured.UnstructuredList{}
+	list.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "deuxfleurs.fr",
+		Version: "v1alpha1",
+		Kind:    "GarageNodeList",
+	})
+	if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	for i := range list.Items {
+		if err := r.Delete(ctx, &list.Items[i]); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 // ── Status ─────────────────────────────────────────────────────────────────────
