@@ -231,6 +231,11 @@ spec:
         displayName: Garage Cluster
         description: Deploys and manages a Garage S3 distributed storage cluster.
         specDescriptors:
+          - path: metadata.namespace
+            displayName: Namespace
+            description: Namespace where the GarageCluster will be created.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
           - path: replicas
             displayName: Replicas
             description: Number of Garage nodes in the cluster.
@@ -312,6 +317,11 @@ spec:
         displayName: Garage WebUI
         description: Deploys the Garage web management interface.
         specDescriptors:
+          - path: metadata.namespace
+            displayName: Namespace
+            description: Namespace where the GarageWebUI will be created.
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:text"
           - path: replicas
             displayName: Replicas
             x-descriptors:
